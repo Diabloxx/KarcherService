@@ -159,6 +159,13 @@ body {
 .status-count-box[style*='#e15759'] .status-count-value { color: #e15759; }
 .status-count-box[style*='#59a14f'] .status-count-value { color: #59a14f; }
 .status-count-box[style*='#f28e2b'] .status-count-value { color: #f28e2b; }
+.status-count-box[style*='#9b59b6'] .status-count-value { 
+  color: #9b59b6; 
+}
+
+.status-count-box[style*='#9b59b6']:hover {
+  box-shadow: 0 4px 16px rgba(155, 89, 182, 0.2);
+}
 
 .dashboard-logo-row {
   display: flex;

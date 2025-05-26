@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { serviceOrders } from './mockData';
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import './App.css';
@@ -47,17 +47,77 @@ function getStatusCounts(orders) {
   return counts;
 }
 
+function getLastMonthSubmissions(orders) {
+  const today = new Date();
+  const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+  const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
+  
+  return orders.filter(o => {
+    const date = new Date(o.submittedDate);
+    return date >= lastMonth && date <= lastMonthEnd;
+  }).length;
+}
+
 function App() {
-  const avgWait = useMemo(() => getAverageWaitTime(serviceOrders), []);
-  const statusCounts = useMemo(() => getStatusCounts(serviceOrders), []);
+  // Use state for live-updating mock data
+  const [liveOrders, setLiveOrders] = useState(serviceOrders);
+
+  // Live update effect: randomly add/finish orders every 2 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setLiveOrders(prevOrders => {
+        let orders = [...prevOrders];
+        const today = new Date();
+        const todayStr = today.toISOString().slice(0, 10);
+        // 50% chance to add a new order
+        if (Math.random() < 0.5) {
+          const codeOptions = [100, 151, 600];
+          const code = codeOptions[Math.floor(Math.random() * codeOptions.length)];
+          const status = STATUS_CODES[code];
+          orders.push({
+            id: orders.length + 1,
+            code,
+            status,
+            createdDate: todayStr,
+            finishedDate: null,
+            submittedDate: code === 600 ? todayStr : null,
+            waitingForParts: code === 151
+          });
+        }
+        // 40% chance to finish a random 'New' or 'Waiting for Spare Parts' order
+        if (Math.random() < 0.4) {
+          const unfinished = orders.filter(o => (o.code === 100 || o.code === 151) && !o.finishedDate);
+          if (unfinished.length > 0) {
+            const idx = orders.indexOf(unfinished[Math.floor(Math.random() * unfinished.length)]);
+            if (idx !== -1) {
+              orders[idx] = {
+                ...orders[idx],
+                code: 500,
+                status: 'Problem Solved',
+                finishedDate: todayStr
+              };
+            }
+          }
+        }
+        // Keep only the last 200 orders for performance
+        if (orders.length > 200) orders = orders.slice(orders.length - 200);
+        return orders;
+      });
+    }, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const avgWait = useMemo(() => getAverageWaitTime(liveOrders), [liveOrders]);
+  const statusCounts = useMemo(() => getStatusCounts(liveOrders), [liveOrders]);
+  const lastMonthCount = useMemo(() => getLastMonthSubmissions(liveOrders), [liveOrders]);
   // Prepare daily data for each status
   const statusDailyData = useMemo(() => {
     const result = {};
     Object.entries(STATUS_CODES).forEach(([code, name]) => {
-      result[name] = getStatusDailyData(serviceOrders, Number(code));
+      result[name] = getStatusDailyData(liveOrders, Number(code));
     });
     return result;
-  }, []);
+  }, [liveOrders]);
 
   return (
     <div className="dashboard-container">
@@ -72,11 +132,34 @@ function App() {
             <span className="status-count-value">{statusCounts[name]}</span>
           </div>
         ))}
+        <div className="status-count-box" style={{ borderColor: '#9b59b6' }}>
+          <span className="status-count-label">Last Month Submissions</span>
+          <span className="status-count-value">{lastMonthCount}</span>
+        </div>
       </div>
       <div className="dashboard-row">
         <div className="dashboard-card">
           <h2>Average Wait Time (days)</h2>
           <div className="wait-time">{avgWait}</div>
+        </div>
+        <div className="dashboard-card">
+          <h2>Monthly Submissions Trend</h2>
+          <ResponsiveContainer width="100%" height={250}>
+            <LineChart data={statusDailyData['Submitted']}>
+              <XAxis dataKey="date" />
+              <YAxis allowDecimals={false} />
+              <Tooltip />
+              <Legend />
+              <Line 
+                type="monotone" 
+                dataKey="count" 
+                stroke="#9b59b6" 
+                name="Submissions" 
+                strokeWidth={3} 
+                dot={{ r: 4 }} 
+              />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
       </div>
       <div className="dashboard-row" style={{ flexWrap: 'wrap' }}>
