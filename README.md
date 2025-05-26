@@ -3,7 +3,7 @@
 ## Overview
 This project is a modern Vite + React dashboard for Karcher Service Division that visualizes service order data. It provides real-time monitoring of service orders with different statuses, visualizes trends, and calculates key metrics.
 
-![Dashboard Screenshot](dashboard-screenshot.png)
+![Dashboard Screenshot](dashboard-screenshot.PNG)
 
 ## Features
 
